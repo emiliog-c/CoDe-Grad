@@ -1,5 +1,3 @@
-Python Version 3.813
-Addons required:
-Pandas (pip install pandas)
-Streamlit (pip install streamlit)
-numpy (pip install numpy)
+pandas
+streamlit
+numpy
