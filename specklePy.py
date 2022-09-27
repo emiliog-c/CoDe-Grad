@@ -19,7 +19,7 @@ graphs = st.container()
 
 
 with header:
-    st.title ("CoDe Graduation Project: Speckle Visualisation Dashboar")
+    st.title ("CoDe Graduation Project: Speckle Visualisation Dashboard")
 
 with input:
     st.subheader("Speckle Repository")
@@ -41,5 +41,4 @@ with viewer:
     st.subheader("Latest Commit")
     commitID = str(commits[0].id)#Looks for the newest commit
     embed_src = "https://speckle.xyz/embed?stream="+stream.id+"&commit="+commitID
-    st.text(embed_src)
     st.components.v1.iframe(src=embed_src, width=600, height=400)
