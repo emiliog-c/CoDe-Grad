@@ -32,6 +32,7 @@ with input:
     streams = client.stream.list() #Speckle Stream List
     streamNames = [s.name for s in streams]
     sName = st.selectbox(label="Select your stream", options=streamNames, help="Select your stream from the dropdown")
+    st.text(dir(streamNames))
     stream = client.stream.search(sName)[0]
     branches = client.branch.list(stream.id)
     commits = client.commit.list(stream.id, limit=100)
