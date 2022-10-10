@@ -26,7 +26,7 @@ with input:
     st.subheader("Speckle Repository")
     serverCol, tokenCol = st.columns([1,3]) #ratio of the columns, token is 3 times larger than server column.
     speckleServer = serverCol.text_input("Server URL", "speckle.xyz", help="Speckle server to connect.")
-    speckleToken = tokenCol.text_input("Speckle token", "e1379c4445e255ab7e79e7ca3b7e76f99008cc643e", help="In order to access the streams, the token must be able to read profile")
+    speckleToken = tokenCol.text_input("Speckle token", "d2b80238f7f7ed8b655f0311571163f3a609849c85", help="In order to access the streams, the token must be able to read profile")
     client = SpeckleClient(host=speckleServer) #SpecklePy Command, gets host according to the text input in speckleServer
     account = get_account_from_token(speckleToken, speckleServer) #applies the account with the data from the token and server input
     client.authenticate_with_account(account) #method command
@@ -40,10 +40,17 @@ with input:
 
 with viewer:
     st.subheader("Latest Commit")
-    commitID = str(commits[0].id)#Looks for the newest commit
-    embed_src = "https://speckle.xyz/embed?stream="+stream.id+"&commit="+commitID
+    #commitID = str(commits[0].id)#Looks for the newest commit
+    commitMessage = [d.message for d in commits]
+    commitNum = [c.id for c in commits]
+    df_commits = pd.DataFrame(list(zip(commitMessage, commitNum)),
+                        columns =["Commit Message", "Commit ID"]) #Creates Pandas Dataframe with the commit message in the first column and the ID of it in the second
+    cName = st.selectbox(label="Select your commit", options=commitMessage, help="Select your commit from the dropdown") #Shows the message in the Dropdown
+    j = df_commits[df_commits['Commit Message'].str.contains(cName)]#Searches the Pandas Dataframe for the string that was chosen in the dropdown to find the ID in the dataframe. Problem with this is that duplicate commital messages will screw with the search system, so theres probably a much more efficient system of searching the pandas dataframe according to the index number instead of searching it according to the string, but thats for a later date.
+    k = j.iloc[0]["Commit ID"]
+    embed_src = "https://speckle.xyz/embed?stream="+stream.id+"&commit="+k
     st.text(embed_src)
-    st.components.v1.iframe(src=embed_src, width=600, height=400)
+    st.components.v1.iframe(src=embed_src, width=1200, height=800)
 
 with graphs:
     st.subheader("Graphs")
