@@ -119,6 +119,126 @@ def search(values, searchFor):
                 return k
     return None
 
+class TypeCheck:
+    def __init__(self, graphChoice, graphName, data1, colChoice):
+        self.graphChoice = graphChoice
+        self.graphName = graphName
+        self.data1 = data1
+        self.colChoice = colChoice
+
+    def checkCheck(self):
+        check = self.data1["@Data"]
+        free2 = check.get_member_names() #gets all the attributes in the commit
+        chars = '@' #check for detachable attributes
+        selected_types = []
+        agh = [idx for idx in free2 if idx[0].lower() == chars.lower()] #checks all the attribute names for the detachable ones, luckily when GH sends it through it puts the tree numbers on the outside for each object
+        check2 = agh[0]
+        check3 = self.data1["@Data"][check2][0]
+        serializer = BaseObjectSerializer()
+        uh = serializer.write_json(check3)
+        if self.graphChoice in str(uh): #does a simple check if the object is there, will be used when the drop downs for the various graphs will be added
+            check4 = True
+        else:
+            check4 = False
+        if check4 == True:
+            objects = []
+            for j in agh:
+                yes = self.data1["@Data"][j][0][self.graphChoice]#loops through and grabs the object type accordingly
+                objects.append(yes)
+            cnt = Counter()
+            for word in objects:
+                cnt[word] += 1 #counts each time a word is repeated
+            cnt3 = dict(cnt)
+            df1 = pd.DataFrame(list(cnt3.items()), columns = ['type', 'number']) #pandas dataframes for the plotly graphs
+            #ill change these for definitions when i have the time
+            objectFig = px.pie(df1, names=df1['type'], values=df1['number'])
+            objectFig.update_layout(
+                showlegend=False,
+                margin=dict(l=1,r=1,t=1,b=1),
+                height=500,
+                yaxis_scaleanchor="x",)
+            self.colChoice.subheader(self.graphName)
+            self.colChoice.plotly_chart(objectFig, use_container_width=True)
+        else:
+            self.colChoice.text("No Graph to show")
+
+
+def objectTypeCheck(res1, object_graph_col):
+    check = res1["@Data"]
+    free2 = check.get_member_names() #gets all the attributes in the commit
+    chars = '@' #check for detachable attributes
+    selected_types = []
+    agh = [idx for idx in free2 if idx[0].lower() == chars.lower()] #checks all the attribute names for the detachable ones, luckily when GH sends it through it puts the tree numbers on the outside for each object
+    check2 = agh[0]
+    check3 = res["@Data"][check2][0]
+    serializer = BaseObjectSerializer()
+    uh = serializer.write_json(check3)
+    if "@objectType" in str(uh): #does a simple check if the object is there, will be used when the drop downs for the various graphs will be added
+        check4 = True
+    else:
+        check4 = False
+    if check4 == True:
+        objects = []
+        for j in agh:
+            yes = res["@Data"][j][0]["@objectType"]#loops through and grabs the object type accordingly
+            objects.append(yes)
+        cnt = Counter()
+        for word in objects:
+            cnt[word] += 1 #counts each time a word is repeated
+        cnt3 = dict(cnt)
+        df1 = pd.DataFrame(list(cnt3.items()), columns = ['type', 'number']) #pandas dataframes for the plotly graphs
+        #ill change these for definitions when i have the time
+        objectFig = px.pie(df1, names=df1['type'], values=df1['number'])
+        objectFig.update_layout(
+            showlegend=False,
+            margin=dict(l=1,r=1,t=1,b=1),
+            height=500,
+            yaxis_scaleanchor="x",)
+        object_graph_col.plotly_chart(objectFig, use_container_width=True)
+    else:
+        object_graph_col.text("No Graph to show")
+
+def materialTypeCheck(res2, material_graph_col):
+    check = res2["@Data"]
+    free2 = check.get_member_names() #gets all the attributes in the commit
+    chars = '@' #check for detachable attributes
+    selected_types = []
+    agh = [idx for idx in free2 if idx[0].lower() == chars.lower()] #checks all the attribute names for the detachable ones, luckily when GH sends it through it puts the tree numbers on the outside for each object
+    check2 = agh[0]
+    check3 = res["@Data"][check2][0]
+    serializer = BaseObjectSerializer()
+    uh = serializer.write_json(check3)
+    if "@material" in str(uh): #does a simple check if the object is there, will be used when the drop downs for the various graphs will be added
+        check4 = True
+    else:
+        check4 = False
+    if check4 == True:
+        material = []
+        for m in agh:
+            noo = res["@Data"][m][0]["@material"]
+            material.append(noo)
+        cnt2 = Counter()
+        for word in material:
+            cnt2[word] += 1
+        cnt4 = dict(cnt2)
+        df2 = pd.DataFrame(list(cnt4.items()), columns = ['material', 'number'])
+        #ill change these for definitions when i have the time
+
+        materialFig = px.pie(df2, names=df2['material'], values=df2['number'])
+        materialFig.update_layout(
+            showlegend=False,
+            margin=dict(l=1,r=1,t=1,b=1),
+            height=500,
+            yaxis_scaleanchor="x",)
+        material_graph_col.plotly_chart(materialFig, use_container_width=True)
+    
+    else:
+        material_graph_col.text("No Graph to show")
+
+def graphChoose(gType1, gType2, data1, colType1, colType2):
+    {gType1}(data1, colType1)
+    {gType2}(data1, colType2)
+        
 
 
 
@@ -143,11 +263,13 @@ with st.sidebar:
     #commitID = str(commits[0].id)#Looks for the newest commit
     commitMessage = [d.message for d in commits]
     commitNum = [c.id for c in commits]
+    commitDict = dict(zip(commitMessage, commitNum))
     df_commits = pd.DataFrame(list(zip(commitMessage, commitNum)),
                         columns =["Commit Message", "Commit ID"]) #Creates Pandas Dataframe with the commit message in the first column and the ID of it in the second
-    cName = st.selectbox(label="Select your commit", options=commitMessage, help="Select your commit from the dropdown") #Shows the message in the Dropdown
-    j = df_commits[df_commits['Commit Message'].str.contains(cName)]#Searches the Pandas Dataframe for the string that was chosen in the dropdown to find the ID in the dataframe. Problem with this is that duplicate commital messages will screw with the search system, so theres probably a much more efficient system of searching the pandas dataframe according to the index number instead of searching it according to the string, but thats for a later date.
-    iD = j.iloc[0]["Commit ID"]
+    cName = st.selectbox(label="Select your commit", options=commitDict, help="Select your commit from the dropdown") #Shows the message in the Dropdown
+    #j = df_commits[df_commits['Commit Message'].str.contains(cName)]#Searches the Pandas Dataframe for the string that was chosen in the dropdown to find the ID in the dataframe. Problem with this is that duplicate commital messages will screw with the search system, so theres probably a much more efficient system of searching the pandas dataframe according to the index number instead of searching it according to the string, but thats for a later date.
+    #iD = j.iloc[0]["Commit ID"]
+    iD = commitDict[cName]
     
     
     with st.expander('Change time period of model'):
@@ -162,7 +284,6 @@ with st.sidebar:
         dayEval = dayECol.number_input("Ending day for the analysis period")
         hourSval = hourSCol.number_input("Starting hour for the analysis period")
         hourEval = hourECol.number_input("Ending hour for the analysis period") 
-
         send_commit_1(monthSval, monthEval, daySval, dayEval, hourSval, hourEval, stream_name, commitName)
     
     with st.expander("Change min and max of legend of model"):
@@ -172,80 +293,26 @@ with st.sidebar:
         minCol, maxCol = st.columns([1,1])
         minVal = minCol.number_input("Minimum Value")
         maxVal = maxCol.number_input("Max Value")
-    
-
         send_commit_2(minVal, maxVal, stream_name, commitNameMin)
         
 with viewer:
     st.subheader("Speckle Viewer of chosen model")
     view_model(stream, iD)
 
-with graphs:
-    st.subheader("Graphs")
+
+
+with st.expander("Graphs"):
+    graphC1_col, graphC2_col = st.columns([1,1])
     branch_graph_col, connector_graph_col = st.columns([1,1])
     commit = client.commit.get(stream_name, iD)
     transport3 = ServerTransport(client=client, stream_id=stream_name)
     res = operations.receive(commit.referencedObject, transport3)
-    check = res["@Data"]
-    free2 = check.get_member_names() #gets all the attributes in the commit
-    chars = '@' #check for detachable attributes
-    selected_types = []
-    agh = [idx for idx in free2 if idx[0].lower() == chars.lower()] #checks all the attribute names for the detachable ones, luckily when GH sends it through it puts the tree numbers on the outside for each object
-    objects = []
-    material = []
-    check2 = agh[0]
-    check3 = res["@Data"][check2][0]
-    serializer = BaseObjectSerializer()
-    uh = serializer.write_json(check3)
-    if "@objectType" in str(uh): #does a simple check if the object is there, will be used when the drop downs for the various graphs will be added
-        check4 = True
-    else:
-        check4 = False
-    if check4 == True:
-        for j in agh:
-            yes = res["@Data"][j][0]["@objectType"]#loops through and grabs the object type accordingly
-            objects.append(yes)
-        for m in agh:
-            noo = res["@Data"][m][0]["@material"]
-            material.append(noo)
-        
-        cnt = Counter()
-        cnt2 = Counter()
-        for word in objects:
-            cnt[word] += 1 #counts each time a word is repeated
-        
-        for word in material:
-            cnt2[word] += 1
-
-        cnt3 = dict(cnt)
-        cnt4 = dict(cnt2)
-        df1 = pd.DataFrame(list(cnt3.items()), columns = ['type', 'number']) #pandas dataframes for the plotly graphs
-        df2 = pd.DataFrame(list(cnt4.items()), columns = ['material', 'number'])
-        #ill change these for definitions when i have the time
-        objectFig = px.pie(df1, names=df1['type'], values=df1['number'])
-        objectFig.update_layout(
-            showlegend=False,
-            margin=dict(l=1,r=1,t=1,b=1),
-            height=500,
-            yaxis_scaleanchor="x",)
-        materialFig = px.pie(df2, names=df2['material'], values=df2['number'])
-        materialFig.update_layout(
-            showlegend=False,
-            margin=dict(l=1,r=1,t=1,b=1),
-            height=500,
-            yaxis_scaleanchor="x",)
-        connector_graph_col.plotly_chart(objectFig, use_container_width=True)
-        branch_graph_col.plotly_chart(materialFig, use_container_width=True)
-    
-    else:
-        st.subheader("No Graphs to show")
-        
-    #definitely needs a clean up
-
-    
-
-
-
-
-
-
+    graphs = {"Object Type": '@objectType', 'Material Type': '@material'}
+    gT1 = graphC1_col.selectbox(label="Select your Graph Type", options=graphs, key=4)
+    gT2 = graphC2_col.selectbox(label="Select your Graph Type", options=graphs, key=5)
+    gFull1 = (graphs[gT1])
+    gFull2 = (graphs[gT2])
+    t1 = TypeCheck(gFull1, gT1, res, branch_graph_col)
+    t2 = TypeCheck(gFull2, gT2, res, connector_graph_col)
+    t1.checkCheck()
+    t2.checkCheck()
