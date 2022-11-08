@@ -7,13 +7,16 @@ from specklepy.api.credentials import get_account_from_token
 import pandas as pd
 #import plotly express
 import plotly.express as px
+import plotly.graph_objects as go
+
 from specklepy.transports.server import ServerTransport
 from specklepy.api import operations
 from specklepy.serialization.base_object_serializer import BaseObjectSerializer
 
 st.set_page_config(
     page_title="CoDe Graduation Project",
-    page_icon="📊")
+    page_icon="📊",
+    layout="wide")
 
 
 
@@ -23,6 +26,7 @@ viewer = st.container()
 graphs = st.container()
 newblock = st.container()
 minmax = st.container()
+metadata = st.expander("Metadata")
 
 from specklepy.objects import Base
 from specklepy.objects.geometry import Point
@@ -120,11 +124,13 @@ def search(values, searchFor):
     return None
 
 class TypeCheck:
-    def __init__(self, graphChoice, graphName, data1, colChoice):
+    def __init__(self, graphChoice, graphName, data1, colChoice, s, k):
         self.graphChoice = graphChoice
         self.graphName = graphName
         self.data1 = data1
         self.colChoice = colChoice
+        self.s = s
+        self.k = k
 
     def checkCheck(self):
         check = self.data1["@Data"]
@@ -136,111 +142,56 @@ class TypeCheck:
         check3 = self.data1["@Data"][check2][0]
         serializer = BaseObjectSerializer()
         uh = serializer.write_json(check3)
-        if self.graphChoice in str(uh): #does a simple check if the object is there, will be used when the drop downs for the various graphs will be added
-            check4 = True
+        if self.graphChoice == "viewer":
+            embed_src = "https://speckle.xyz/embed?stream="+self.s.id+"&commit="+self.k
+            with self.colChoice:
+                st.subheader(self.graphName)
+                st.components.v1.iframe(src=embed_src, width=400, height=400)
         else:
-            check4 = False
-        if check4 == True:
-            objects = []
-            for j in agh:
-                yes = self.data1["@Data"][j][0][self.graphChoice]#loops through and grabs the object type accordingly
-                objects.append(yes)
-            cnt = Counter()
-            for word in objects:
-                cnt[word] += 1 #counts each time a word is repeated
-            cnt3 = dict(cnt)
-            df1 = pd.DataFrame(list(cnt3.items()), columns = ['type', 'number']) #pandas dataframes for the plotly graphs
-            #ill change these for definitions when i have the time
-            objectFig = px.pie(df1, names=df1['type'], values=df1['number'])
-            objectFig.update_layout(
-                showlegend=False,
-                margin=dict(l=1,r=1,t=1,b=1),
-                height=500,
-                yaxis_scaleanchor="x",)
-            self.colChoice.subheader(self.graphName)
-            self.colChoice.plotly_chart(objectFig, use_container_width=True)
-        else:
-            self.colChoice.text("No Graph to show")
+            if self.graphChoice in str(uh): #does a simple check if the object is there, will be used when the drop downs for the various graphs will be added
+                check4 = True
+            elif "Objects.Geometry" in str(uh):
+                check4 = True
+            else:
+                check4 = False
+            if check4 == True:
+                if "Type" in self.graphName:
+                    objects = []
+                    for j in agh:
+                        yes = self.data1["@Data"][j][0]["geoProps"][self.graphChoice]#loops through and grabs the object type accordingly
+                        objects.append(yes)
+                    cnt = Counter()
+                    for word in objects:
+                        cnt[word] += 1 #counts each time a word is repeated
+                    cnt3 = dict(cnt)
+                    df1 = pd.DataFrame(list(cnt3.items()), columns = ['type', 'number']) #pandas dataframes for the plotly graphs
+                        #ill change these for definitions when i have the time
+                    objectFig = px.pie(df1, names=df1['type'], values=df1['number'])
+                    objectFig.update_layout(
+                        showlegend=False,
+                        margin=dict(l=1,r=1,t=1,b=1),
+                        height=500,
+                        yaxis_scaleanchor="x",)
+                    self.colChoice.subheader(self.graphName)
+                    self.colChoice.plotly_chart(objectFig, use_container_width=True)
+                else:
+                    types = []
+                    values = []
+                    for j in agh:
+                        yes = self.data1["@Data"][j][0]["@geometry"][self.graphChoice]#loops through and grabs the object type accordingly
+                        values.append(yes)
+                    for i in agh:
+                        yes = self.data1["@Data"][i][0]["id"]#loops through and grabs the object type accordingly
+                        types.append(yes)
+                    GeoDict = dict(zip(types, values))
+                    result_GeoDict = pd.DataFrame.from_dict([GeoDict])
+                    true_geoDict = result_GeoDict.transpose()
+                    self.colChoice.subheader(self.graphName)
+                    self.colChoice.table(true_geoDict)
 
-
-def objectTypeCheck(res1, object_graph_col):
-    check = res1["@Data"]
-    free2 = check.get_member_names() #gets all the attributes in the commit
-    chars = '@' #check for detachable attributes
-    selected_types = []
-    agh = [idx for idx in free2 if idx[0].lower() == chars.lower()] #checks all the attribute names for the detachable ones, luckily when GH sends it through it puts the tree numbers on the outside for each object
-    check2 = agh[0]
-    check3 = res["@Data"][check2][0]
-    serializer = BaseObjectSerializer()
-    uh = serializer.write_json(check3)
-    if "@objectType" in str(uh): #does a simple check if the object is there, will be used when the drop downs for the various graphs will be added
-        check4 = True
-    else:
-        check4 = False
-    if check4 == True:
-        objects = []
-        for j in agh:
-            yes = res["@Data"][j][0]["@objectType"]#loops through and grabs the object type accordingly
-            objects.append(yes)
-        cnt = Counter()
-        for word in objects:
-            cnt[word] += 1 #counts each time a word is repeated
-        cnt3 = dict(cnt)
-        df1 = pd.DataFrame(list(cnt3.items()), columns = ['type', 'number']) #pandas dataframes for the plotly graphs
-        #ill change these for definitions when i have the time
-        objectFig = px.pie(df1, names=df1['type'], values=df1['number'])
-        objectFig.update_layout(
-            showlegend=False,
-            margin=dict(l=1,r=1,t=1,b=1),
-            height=500,
-            yaxis_scaleanchor="x",)
-        object_graph_col.plotly_chart(objectFig, use_container_width=True)
-    else:
-        object_graph_col.text("No Graph to show")
-
-def materialTypeCheck(res2, material_graph_col):
-    check = res2["@Data"]
-    free2 = check.get_member_names() #gets all the attributes in the commit
-    chars = '@' #check for detachable attributes
-    selected_types = []
-    agh = [idx for idx in free2 if idx[0].lower() == chars.lower()] #checks all the attribute names for the detachable ones, luckily when GH sends it through it puts the tree numbers on the outside for each object
-    check2 = agh[0]
-    check3 = res["@Data"][check2][0]
-    serializer = BaseObjectSerializer()
-    uh = serializer.write_json(check3)
-    if "@material" in str(uh): #does a simple check if the object is there, will be used when the drop downs for the various graphs will be added
-        check4 = True
-    else:
-        check4 = False
-    if check4 == True:
-        material = []
-        for m in agh:
-            noo = res["@Data"][m][0]["@material"]
-            material.append(noo)
-        cnt2 = Counter()
-        for word in material:
-            cnt2[word] += 1
-        cnt4 = dict(cnt2)
-        df2 = pd.DataFrame(list(cnt4.items()), columns = ['material', 'number'])
-        #ill change these for definitions when i have the time
-
-        materialFig = px.pie(df2, names=df2['material'], values=df2['number'])
-        materialFig.update_layout(
-            showlegend=False,
-            margin=dict(l=1,r=1,t=1,b=1),
-            height=500,
-            yaxis_scaleanchor="x",)
-        material_graph_col.plotly_chart(materialFig, use_container_width=True)
-    
-    else:
-        material_graph_col.text("No Graph to show")
-
-def graphChoose(gType1, gType2, data1, colType1, colType2):
-    {gType1}(data1, colType1)
-    {gType2}(data1, colType2)
-        
-
-
+            else:
+                self.colChoice.text("No Graph/Table to show")
+                st.subheader(str(uh))
 
 with header:
     st.title ("CoDe Graduation Project: Speckle Visualisation Dashboard")
@@ -260,15 +211,10 @@ with st.sidebar:
     stream_name = stream.id
     branches = client.branch.list(stream.id)
     commits = client.commit.list(stream.id, limit=100)
-    #commitID = str(commits[0].id)#Looks for the newest commit
     commitMessage = [d.message for d in commits]
     commitNum = [c.id for c in commits]
     commitDict = dict(zip(commitMessage, commitNum))
-    df_commits = pd.DataFrame(list(zip(commitMessage, commitNum)),
-                        columns =["Commit Message", "Commit ID"]) #Creates Pandas Dataframe with the commit message in the first column and the ID of it in the second
     cName = st.selectbox(label="Select your commit", options=commitDict, help="Select your commit from the dropdown") #Shows the message in the Dropdown
-    #j = df_commits[df_commits['Commit Message'].str.contains(cName)]#Searches the Pandas Dataframe for the string that was chosen in the dropdown to find the ID in the dataframe. Problem with this is that duplicate commital messages will screw with the search system, so theres probably a much more efficient system of searching the pandas dataframe according to the index number instead of searching it according to the string, but thats for a later date.
-    #iD = j.iloc[0]["Commit ID"]
     iD = commitDict[cName]
     
     
@@ -296,23 +242,60 @@ with st.sidebar:
         send_commit_2(minVal, maxVal, stream_name, commitNameMin)
         
 with viewer:
-    st.subheader("Speckle Viewer of chosen model")
-    view_model(stream, iD)
-
-
-
-with st.expander("Graphs"):
     graphC1_col, graphC2_col = st.columns([1,1])
     branch_graph_col, connector_graph_col = st.columns([1,1])
     commit = client.commit.get(stream_name, iD)
     transport3 = ServerTransport(client=client, stream_id=stream_name)
     res = operations.receive(commit.referencedObject, transport3)
-    graphs = {"Object Type": '@objectType', 'Material Type': '@material'}
+    graphs = {"Object Type": '@objectType', 'Material Type': '@material', "Viewer": "viewer"}
     gT1 = graphC1_col.selectbox(label="Select your Graph Type", options=graphs, key=4)
     gT2 = graphC2_col.selectbox(label="Select your Graph Type", options=graphs, key=5)
     gFull1 = (graphs[gT1])
     gFull2 = (graphs[gT2])
-    t1 = TypeCheck(gFull1, gT1, res, branch_graph_col)
-    t2 = TypeCheck(gFull2, gT2, res, connector_graph_col)
+    t1 = TypeCheck(gFull1, gT1, res, branch_graph_col, stream, iD)
+    t2 = TypeCheck(gFull2, gT2, res, connector_graph_col, stream, iD)
     t1.checkCheck()
     t2.checkCheck()
+
+# get parameter value from parameter name
+with metadata:
+    check = res["@Data"]
+    free2 = check.get_member_names() #gets all the attributes in the commit
+    chars = '@' #check for detachable attributes
+    selected_types = []
+    agh = [idx for idx in free2 if idx[0].lower() == chars.lower()]
+    types = []
+    values = []
+    yes1 = res["@Data"][agh[0]][0]#loops through and grabs the object type accordingly
+    yes2 = yes1.get_member_names()
+    values.append(yes2)
+    yes3 = res["@Data"][agh[0]][0]["geoProps"]
+    yes4 = yes3.get_member_names()
+    final_list = yes2 + yes4
+    form = st.form("parameter_input")
+    emptDict = {}
+    yes2 = [x for x in yes2 if "Value" not in x]
+    yes2 = [x for x in yes2 if "units" not in x]
+    yes2 = [x for x in yes2 if "speckle_type" not in x]
+    with form:
+        selected_params = st.multiselect("Select parameters", yes2)
+        run_button = st.form_submit_button("RUN")
+    for j in agh:
+        values = []
+        fire = res["@Data"][j][0]['geoProps']["@objectName"]#loops through and grabs the object type accordingly
+        for params in selected_params:
+            checkcheck = res["@Data"][j][0].get_member_names()
+            if params in checkcheck:
+                yes = res["@Data"][j][0][params] #loops through and grabs the object type accordingly
+                values.append(yes)
+            else: 
+                nodata = str("No data")
+                values.append(nodata)
+        emptDict[fire] = values
+        
+    true_geoDF = pd.DataFrame(emptDict)
+   # result_GeoDict = pd.DataFrame.from_dict([GeoDict])
+    true_geoDF = true_geoDF.transpose()
+    true_geoDF.columns = selected_params
+    #st.text(emptDict)
+    st.table(true_geoDF)
