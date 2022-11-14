@@ -8,6 +8,7 @@ import pandas as pd
 #import plotly express
 import plotly.express as px
 import plotly.graph_objects as go
+import collections
 
 from specklepy.transports.server import ServerTransport
 from specklepy.api import operations
@@ -78,7 +79,7 @@ class minvalmaxval(Base):
 
 def view_model(s, k):
     embed_src = "https://speckle.xyz/embed?stream="+s.id+"&commit="+k
-    st.text(embed_src)
+    #st.text(embed_src)
     st.components.v1.iframe(src=embed_src, width=800, height=800)
 
 def send_commit_1(val1, val2, val3, val4, val5, val6, blocksName, comMessage, keyNum):
@@ -125,7 +126,7 @@ def search(values, searchFor):
 
 
 class graphBlock:
-    def __init__(self, blockNum1, blockNum2, graphColN1, graphColN2, clientName, sName1, iD1, sName2, sBox1, sBox2, commitName, gT1, gT2, metaNum):
+    def __init__(self, blockNum1, blockNum2, graphColN1, graphColN2, clientName, sName1, iD1, sName2, sBox1, sBox2, commitName, gT1, gT2, metaNum, denMin, denMax):
         self.blockNum1 = blockNum1
         self.blockNum2 = blockNum2
         self.graphColN1 = graphColN1
@@ -140,8 +141,8 @@ class graphBlock:
         self.gT1 = gT1
         self.gT2 = gT2
         self.metaNum = metaNum
-    
-
+        self.denMin = denMin
+        self.denMax = denMax
 
     def graphInit(self):
         with st.container():
@@ -150,7 +151,7 @@ class graphBlock:
             commit = self.clientName.commit.get(self.sName1, self.iD1)
             transport3 = ServerTransport(client=self.clientName, stream_id=self.sName1)
             res = operations.receive(commit.referencedObject, transport3)
-            graphs = {"Object Type": '@objectType', 'Material Type': '@material', "Viewer": "viewer", "Metadata": "metadata"}
+            graphs = {"Object Type": '@objectType', 'Material Type': '@material', "Viewer": "viewer", "Metadata": "metadata", "Density Chart": 'densityChart'}
             #gT1 = self.blockNum1.selectbox(label="Select your Graph Type", options=graphs, key=self.sBox1)
             #gT2 = self.blockNum2.selectbox(label="Select your Graph Type", options=graphs, key=self.sBox2)
             gFull1 = (graphs[self.gT1])
@@ -162,14 +163,19 @@ class graphBlock:
                 selected_types = []
                 agh = [idx for idx in free2 if idx[0].lower() == chars.lower()] #checks all the attribute names for the detachable ones, luckily when GH sends it through it puts the tree numbers on the outside for each object
                 check2 = agh[0]
-                check3 = data1["@Data"][check2][0]
+                check3 = data1["@Data"][check2]
+                numcheck = len(check3)
+                check5 = data1["@Data"][check2][0]
+                check10 = data1["@Data"][check2][0]["geoProps"] #THIS IS THE CORRECT PATH
+                #check4 = check3.get_member_names()
                 serializer = BaseObjectSerializer()
-                uh = serializer.write_json(check3)
+                uh = serializer.write_json(check10)
+                
                 if graphChoice == "viewer":
                     embed_src = "https://speckle.xyz/embed?stream="+self.sName2.id+"&commit="+self.iD1
                     with colChoice:
-                        st.subheader(graphName + " of commit " + self.commitName)
-                        st.components.v1.iframe(src=embed_src, width=400, height=400)
+                        st.text(graphName + " of commit " + self.commitName)
+                        st.components.v1.iframe(src=embed_src, width=1000, height=600)
                 if graphChoice == "metadata":
                     check = res["@Data"]
                     free2 = check.get_member_names() #gets all the attributes in the commit
@@ -178,28 +184,38 @@ class graphBlock:
                     agh = [idx for idx in free2 if idx[0].lower() == chars.lower()]
                     types = []
                     values = []
-                    yes1 = res["@Data"][agh[0]][0]#loops through and grabs the object type accordingly
-                    yes2 = yes1.get_member_names()
-                    values.append(yes2)
-                    yes3 = res["@Data"][agh[0]][0]["geoProps"]
-                    yes4 = yes3.get_member_names()
-                    final_list = yes2 + yes4
+                    for x in range(numcheck):
+                        yes1 = res["@Data"][agh[0]][x]["geoProps"]#loops through and grabs the object type accordingly
+                        yes2 = yes1.get_member_names()
+                        yes3 = res["@Data"][agh[0]][x]#loops through and grabs the object type accordingly
+                        yes4 = yes3.get_member_names()
+                        values.append(yes2)
                     emptDict = {}
-                    yes2 = [x for x in yes2 if "Value" not in x]
-                    yes2 = [x for x in yes2 if "units" not in x]
-                    yes2 = [x for x in yes2 if "speckle_type" not in x]
-                    colChoice.subheader("Metadata of " + self.commitName)
+                    #yes4 = [x for x in yes2 if "Value" not in x]
+                    #yes4 = [x for x in yes2 if "units" not in x]
+                    #yes4 = [x for x in yes2 if "speckle_type" not in x]
+                    colChoice.text("Metadata of " + self.commitName)
                     with colChoice:
                         form = st.form(key=self.metaNum)
-                        selected_params = form.multiselect("Select parameters", yes2)
+                        selected_paramsObj = form.multiselect("Select Object parameters", yes4)
+                        selected_paramsGeo = form.multiselect("Select geoProps parameters", yes2)
                         form.form_submit_button("RUN")
-                    for j in agh:
+                    for x in range(numcheck):
                         values = []
-                        fire = res["@Data"][j][0]['geoProps']["@objectName"]#loops through and grabs the object type accordingly
-                        for params in selected_params:
-                            checkcheck = res["@Data"][j][0].get_member_names()
+                        fire = res["@Data"][agh[0]][x]['geoProps']["@objectName"]#loops through and grabs the object type accordingly
+                        for params in selected_paramsGeo:
+                            checkcheck = res["@Data"][agh[0]][x]['geoProps'].get_member_names()
                             if params in checkcheck:
-                                yes = res["@Data"][j][0][params] #loops through and grabs the object type accordingly
+                                yes = res["@Data"][agh[0]][x]["geoProps"][params] #loops through and grabs the object type accordingly
+                                values.append(yes)
+                            else: 
+                                nodata = str("No data")
+                                values.append(nodata)
+                            emptDict[fire] = values
+                        for params in selected_paramsObj:
+                            checkcheck = res["@Data"][agh[0]][x].get_member_names()
+                            if params in checkcheck:
+                                yes = res["@Data"][agh[0]][x][params] #loops through and grabs the object type accordingly
                                 values.append(yes)
                             else: 
                                 nodata = str("No data")
@@ -208,9 +224,59 @@ class graphBlock:
                     true_geoDF = pd.DataFrame(emptDict)
                     # result_GeoDict = pd.DataFrame.from_dict([GeoDict])
                     true_geoDF = true_geoDF.transpose()
-                    true_geoDF.columns = selected_params
+                    parameters = selected_paramsGeo+ selected_paramsObj
+                    true_geoDF.columns = parameters
                     #st.text(emptDict)
                     colChoice.table(true_geoDF)
+                if graphChoice == "densityChart":
+                    check = res["@Data"]
+                    free2 = check.get_member_names() #gets all the attributes in the commit
+                    chars = '@' #check for detachable attributes
+                    selected_types = []
+                    agh = [idx for idx in free2 if idx[0].lower() == chars.lower()]
+                    types = []
+                    values = []
+                    emptDict = collections.defaultdict(list)
+                    emptDict2 = {}
+                    for x in range(numcheck):
+                        values = []
+                        values2 = []
+                        fire = res["@Data"][agh[0]][x]['geoProps']["@material"]
+                        objCheck = res["@Data"][agh[0]][x]['geoProps']["@material"]
+                        yes1 = res["@Data"][agh[0]][x]["geoProps"]['@density']#loops through and grabs the object type accordingly
+                        checkz = res["@Data"][agh[0]][x]["geoProps"]['@ee']
+                        eeDens = yes1*float(checkz)
+                        if eeDens > self.denMin:
+                            if eeDens < self.denMax:
+                                emptDict[fire].append(eeDens)
+                            else:
+                                emptDict[fire].append(0)
+                        else:
+                            emptDict[fire].append(0)
+                        values2.append(float(checkz))
+                        #values.append(objCheck)
+                        #Cdict = Counter(emptDict) + Counter(emptDict2)
+                        #for key in emptDict2:
+                        #    if key in emptDict:
+                         #       emptDict2[key] = (emptDict2[key]) + (emptDict[key])
+                         #   else:
+                           #     pass
+                    finDict = dict(emptDict)
+                    for keys in finDict:
+                        final = sum(finDict[keys])
+                        finDict[keys] = final
+                    emptDict2 = collections.defaultdict(list)
+                    for keys in finDict:
+                        emptDict2["keys"].append(keys)
+                        emptDict2["values"].append(finDict[keys])
+                    emptDict2 = dict(emptDict2)
+                    fig = px.bar(emptDict2, x='keys', y='values')
+                    colChoice.text(graphName + " of commit " + self.commitName)
+                    colChoice.plotly_chart(fig, use_container_width=True)
+                    #st.table(finDict)
+
+
+
                 else:
                     if graphChoice in str(uh): #does a simple check if the object is there, will be used when the drop downs for the various graphs will be added
                         check4 = True
@@ -221,8 +287,8 @@ class graphBlock:
                     if check4 == True:
                         if "Type" in graphName:
                             objects = []
-                            for j in agh:
-                                yes = data1["@Data"][j][0]["geoProps"][graphChoice]#loops through and grabs the object type accordingly
+                            for x in range(numcheck):
+                                yes = data1["@Data"][agh[0]][x]["geoProps"][graphChoice]#loops through and grabs the object type accordingly
                                 objects.append(yes)
                             cnt = Counter()
                             for word in objects:
@@ -232,35 +298,20 @@ class graphBlock:
                                 #ill change these for definitions when i have the time
                             objectFig = px.pie(df1, names=df1['type'], values=df1['number'])
                             objectFig.update_layout(
-                                showlegend=False,
+                                showlegend=True,
                                 margin=dict(l=1,r=1,t=1,b=1),
                                 height=500,
                                 yaxis_scaleanchor="x",)
-                            colChoice.subheader(graphName + " of commit " + self.commitName)
+                            colChoice.text(graphName + " of commit " + self.commitName)
                             colChoice.plotly_chart(objectFig, use_container_width=True)
                         else:
-                            types = []
-                            values = []
-                            for j in agh:
-                                yes = data1["@Data"][j][0]["@geometry"][graphChoice]#loops through and grabs the object type accordingly
-                                values.append(yes)
-                            for i in agh:
-                                yes = data1["@Data"][i][0]["id"]#loops through and grabs the object type accordingly
-                                types.append(yes)
-                            GeoDict = dict(zip(types, values))
-                            result_GeoDict = pd.DataFrame.from_dict([GeoDict])
-                            true_geoDict = result_GeoDict.transpose()
-                            colChoice.subheader(graphName)
-                            colChoice.table(true_geoDict)
+                            colChoice.text("No Graph/Table to show")
 
-                    else:
-                        colChoice.text("No Graph/Table to show")
-                        st.subheader(str(uh))
+                        
             checkCheck(res, gFull1, self.graphColN1, self.gT1)
             checkCheck(res, gFull2, self.graphColN2, self.gT2)
         
-with header:
-    st.title ("CoDe Graduation Project: Speckle Visualisation Dashboard")
+
 
 with st.sidebar:
     st.subheader("Speckle Repository")
@@ -272,7 +323,9 @@ with st.sidebar:
     client.authenticate_with_account(account) #method command
     streams = client.stream.list() #Speckle Stream List
     streamNames = [s.name for s in streams]
+    titleIn = st.text_input("Dashboard Name", key="dash1", value = "CoDe Graduation Project: Speckle Visualisation Dashboard")
     st.subheader("Block 1")
+    bName1 = st.text_input("Block Name", key="block1", value = "Block 1")
     sName = st.selectbox(label="Select your stream", options=streamNames, key="crazy1", help="Select your stream from the dropdown")
     stream = client.stream.search(sName)[0]
     stream_name = stream.id
@@ -306,21 +359,29 @@ with st.sidebar:
         maxVal = maxCol.number_input("Max Value", key = "maxVal1")
         send_commit_2(minVal, maxVal, stream_name, commitNameMin, "comm2")
     
+    with st.expander("Change min level of Density Check"):
+        minColDen, maxColDen = st.columns([1,1])
+        minValDen = minColDen.number_input("Minimum Value", key = "minVal1Den", value=0)
+        maxValDen = maxColDen.number_input("Max Value", key = "maxVal1Den", value=999999999)
+
+    
     selectBox1, selectBox2 = st.columns([1,1])
-    graphs = {"Object Type": '@objectType', 'Material Type': '@material', "Viewer": "viewer", "Metadata": "metadata"}
+    graphs = {"Object Type": '@objectType', 'Material Type': '@material', "Viewer": "viewer", "Metadata": "metadata", "Density Chart": 'densityChart'}
     gT1 = selectBox1.selectbox(label="Select your Graph Type", options=graphs, key="sBox1")
     gT2 = selectBox2.selectbox(label="Select your Graph Type", options=graphs, key="sBox2")
-
+    
+    addButt, remButt = st.columns([1,1])
     if 'count' not in st.session_state:
         st.session_state.count = 0
-    if st.button("Add box"):
+    if addButt.button("Add box"):
         st.session_state.count += 1
     if st.session_state.count > 0:
-        if st.button("Remove box"):
+        if remButt.button("Remove box"):
             st.session_state.count -= 1
 
     if st.session_state.count >= 1:
         st.subheader("Block 2")
+        bName2 = st.text_input("Block Name", key="block2", value = "Block 2")
         sName2 = st.selectbox(label="Select your stream", options=streamNames, key="crazy3", help="Select your stream from the dropdown")
         stream2 = client.stream.search(sName2)[0]
         stream_name2 = stream2.id
@@ -353,11 +414,16 @@ with st.sidebar:
             minVal2 = minCol2.number_input("Minimum Value", key = "minVal2")
             maxVal2 = maxCol2.number_input("Max Value", key = "maxVal2")
             send_commit_2(minVal2, maxVal2, stream_name2, commitNameMin2, "comm4")
+        with st.expander("Change min level of Density Check"):
+            minColDen2, maxColDen2 = st.columns([1,1])
+            minValDen2 = minColDen2.number_input("Minimum Value", key = "minVal2Den", value=0)
+            maxValDen2 = maxColDen2.number_input("Max Value", key = "maxVal2Den", value=999999999)
         selectBox3, selectBox4 = st.columns([1,1])
         gT3 = selectBox3.selectbox(label="Select your Graph Type", options=graphs, key="sBox3")
         gT4 = selectBox4.selectbox(label="Select your Graph Type", options=graphs, key="sBox4")
     if st.session_state.count >= 2:
         st.subheader("Block 3")
+        bName3 = st.text_input("Block Name", key="block3", value = "Block 3")
         sName3 = st.selectbox(label="Select your stream", options=streamNames, key="crazy5", help="Select your stream from the dropdown")
         stream3 = client.stream.search(sName2)[0]
         stream_name3 = stream3.id
@@ -390,33 +456,40 @@ with st.sidebar:
             minVal3 = minCol3.number_input("Minimum Value", key = "minVal3")
             maxVal3 = maxCol3.number_input("Max Value", key = "maxVal3")
             send_commit_2(minVal3, maxVal3, stream_name3, commitNameMin3, "comm6")
+        with st.expander("Change min level of Density Check"):
+            minColDen3, maxColDen3 = st.columns([1,1])
+            minValDen3 = minColDen3.number_input("Minimum Value", key = "minVal3Den", value=0)
+            maxValDen3 = maxColDen3.number_input("Max Value", key = "maxVal3Den", value=999999999)
         selectBox5, selectBox6 = st.columns([1,1])
-        gT5 = selectBox3.selectbox(label="Select your Graph Type", options=graphs, key="sBox5")
-        gT6 = selectBox4.selectbox(label="Select your Graph Type", options=graphs, key="sBox6")
+        gT5 = selectBox5.selectbox(label="Select your Graph Type", options=graphs, key="sBox5")
+        gT6 = selectBox6.selectbox(label="Select your Graph Type", options=graphs, key="sBox6")
+
+with header:
+    st.title(titleIn)
 
 with viewer:
-    st.subheader("Block 1")
-    cray = graphBlock("try3", "try4", "g3", "g4", client, stream_name, iD, stream, 7, 8, cName, gT1, gT2, "m1")
+    st.subheader(bName1)
+    cray = graphBlock("try3", "try4", "g3", "g4", client, stream_name, iD, stream, 7, 8, cName, gT1, gT2, "m1", minValDen, maxValDen)
     cray.graphInit()
     attList = []
     if st.session_state.count >= 1:
-        st.subheader("Block 2")
+        st.subheader(bName2)
         initNum = 9
         endNum = 16
         attList = []
         for x in range (initNum, endNum):
             attList.append(x)
-        boxNum2 = graphBlock(str(attList[0]), str(attList[1]), str(attList[2]), str(attList[3]), client, stream_name2, iD2, stream2, attList[4], attList[5], cName2, gT3, gT4, "m2")
+        boxNum2 = graphBlock(str(attList[0]), str(attList[1]), str(attList[2]), str(attList[3]), client, stream_name2, iD2, stream2, attList[4], attList[5], cName2, gT3, gT4, "m2", minValDen2, maxValDen2)
         boxNum2.graphInit()
         attList = []
     if st.session_state.count >= 2:
-        st.subheader("Block 3")
+        st.subheader(bName3)
         initNum = 17
         endNum = 23
         attList = []
         for x in range (initNum, endNum):
             attList.append(x)
-        boxNum3 = graphBlock(str(attList[0]), str(attList[1]), str(attList[2]), str(attList[3]), client, stream_name3, iD3, stream3, attList[4], attList[5], cName3, gT5, gT6, "m3")
+        boxNum3 = graphBlock(str(attList[0]), str(attList[1]), str(attList[2]), str(attList[3]), client, stream_name3, iD3, stream3, attList[4], attList[5], cName3, gT5, gT6, "m3", minValDen3, maxValDen3)
         boxNum3.graphInit()
         attList = []
 # get parameter value from parameter name
