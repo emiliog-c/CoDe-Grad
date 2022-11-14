@@ -151,7 +151,7 @@ class graphBlock:
             commit = self.clientName.commit.get(self.sName1, self.iD1)
             transport3 = ServerTransport(client=self.clientName, stream_id=self.sName1)
             res = operations.receive(commit.referencedObject, transport3)
-            graphs = {"Object Type": '@objectType', 'Material Type': '@material', "Viewer": "viewer", "Metadata": "metadata", "Density Chart": 'densityChart'}
+            graphs = {"Object Type": '@objectType', 'Material Type': '@material', "Viewer": "viewer", "Metadata": "metadata", "Density Chart": 'densityChart', "Mass Chart": "massChart"}
             #gT1 = self.blockNum1.selectbox(label="Select your Graph Type", options=graphs, key=self.sBox1)
             #gT2 = self.blockNum2.selectbox(label="Select your Graph Type", options=graphs, key=self.sBox2)
             gFull1 = (graphs[self.gT1])
@@ -267,10 +267,47 @@ class graphBlock:
                         finDict[keys] = final
                     emptDict2 = collections.defaultdict(list)
                     for keys in finDict:
-                        emptDict2["keys"].append(keys)
-                        emptDict2["values"].append(finDict[keys])
+                        emptDict2["Material Type"].append(keys)
+                        emptDict2["kgCO2E/m2"].append(finDict[keys])
                     emptDict2 = dict(emptDict2)
-                    fig = px.bar(emptDict2, x='keys', y='values')
+                    fig = px.bar(emptDict2, x='Material Type', y='kgCO2E/m2')
+                    colChoice.text(graphName + " of commit " + self.commitName)
+                    colChoice.plotly_chart(fig, use_container_width=True)
+                    #st.table(finDict)
+                if graphChoice == "massChart":
+                    check = res["@Data"]
+                    free2 = check.get_member_names() #gets all the attributes in the commit
+                    chars = '@' #check for detachable attributes
+                    selected_types = []
+                    agh = [idx for idx in free2 if idx[0].lower() == chars.lower()]
+                    types = []
+                    values = []
+                    emptDict = collections.defaultdict(list)
+                    emptDict2 = {}
+                    for x in range(numcheck):
+                        values = []
+                        values2 = []
+                        fire = res["@Data"][agh[0]][x]['geoProps']["@material"]
+                        objCheck = res["@Data"][agh[0]][x]['geoProps']["@material"]
+                        yes1 = res["@Data"][agh[0]][x]["geoProps"]['@density']#loops through and grabs the object type accordingly
+                        emptDict[fire].append(float(yes1))
+                        #values.append(objCheck)
+                        #Cdict = Counter(emptDict) + Counter(emptDict2)
+                        #for key in emptDict2:
+                        #    if key in emptDict:
+                         #       emptDict2[key] = (emptDict2[key]) + (emptDict[key])
+                         #   else:
+                           #     pass
+                    finDict = dict(emptDict)
+                    for keys in finDict:
+                        final = sum(finDict[keys])
+                        finDict[keys] = final
+                    emptDict2 = collections.defaultdict(list)
+                    for keys in finDict:
+                        emptDict2["Material Type"].append(keys)
+                        emptDict2["Mass (m3)"].append(finDict[keys])
+                    emptDict2 = dict(emptDict2)
+                    fig = px.bar(emptDict2, x='Material Type', y='Mass (m3)')
                     colChoice.text(graphName + " of commit " + self.commitName)
                     colChoice.plotly_chart(fig, use_container_width=True)
                     #st.table(finDict)
@@ -366,7 +403,7 @@ with st.sidebar:
 
     
     selectBox1, selectBox2 = st.columns([1,1])
-    graphs = {"Object Type": '@objectType', 'Material Type': '@material', "Viewer": "viewer", "Metadata": "metadata", "Density Chart": 'densityChart'}
+    graphs = {"Object Type": '@objectType', 'Material Type': '@material', "Viewer": "viewer", "Metadata": "metadata", "Density Chart": 'densityChart', "Mass Chart": "massChart"}
     gT1 = selectBox1.selectbox(label="Select your Graph Type", options=graphs, key="sBox1")
     gT2 = selectBox2.selectbox(label="Select your Graph Type", options=graphs, key="sBox2")
     
